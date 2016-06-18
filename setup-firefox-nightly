@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# This script will download and setup yakyak in a container.
+
+# MIT License
+#
+# Copyright (c) 2016 Stefan Berggren
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+USE_X=True
+CONTAINER=firefox-nightly
+. $(dirname $0)/setup-container
+
+install_packages lynx bzip2 libgtk-3-0 libasound2 libxtst6 libxt6
+
+# Get latest release
+download_file \
+	$(run_cmd_user lynx -dump https://archive.mozilla.org/pub/firefox/nightly/latest-mozilla-central/ \
+	| grep -E 'firefox-.*linux-x86_64.tar.bz2' | tail -1 | awk '{ print $NF }') \
+	firefox-en-US.linux-x86_64.tar.bz2
+
+set -x
+if ! has_file home/$CONTAINER/firefox; then
+	run_cmd_user tar xfv firefox-en-US.linux-x86_64.tar.bz2
+fi
+
+setup_x_socket
+run_cmd_user firefox/firefox
+
+lxc-stop -n $CONTAINER -t 10
