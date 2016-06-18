@@ -87,6 +87,22 @@ has_file() {
 	return 1
 }
 
+setup_x_socket() {
+	if [ ! -f $HOME/.local/share/lxc/$CONTAINER/x-socket-configured ]; then
+		lxc-stop -n $CONTAINER -t 10
+		lxc-wait -n $CONTAINER -s STOPPED
+
+		# Mount .X11-unix to the container
+		add_config lxc.mount.entry "/tmp/.X11-unix tmp/.X11-unix none bind,optional,create=dir"
+
+		lxc-start -n $CONTAINER -d
+		lxc-wait -n $CONTAINER -s RUNNING
+
+		> $HOME/.local/share/lxc/$CONTAINER/x-socket-configured
+	fi
+}
+
+
 # Download a container if needed
 [ ! -f $HOME/.local/share/lxc/$CONTAINER/config ] && \
 	(
@@ -94,9 +110,6 @@ has_file() {
 		lxc-create -t download -n $CONTAINER -- $BASED_ON
 
 		if [ ! -z $USE_X ]; then
-			# Mount .X11-unix to the container
-			add_config lxc.mount.entry "/tmp/.X11-unix tmp/.X11-unix none bind,optional,create=dir"
-
 			# Rewrite user mappings so that your user has the same UID inside the container.
 			# This do undermine the security but, X is old and unsecure this is needed :\
 			remove_config "lxc.id_map"

@@ -24,7 +24,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
 USE_X=True
 CONTAINER=yakyak
 . $(dirname $0)/setup-container
@@ -37,10 +36,10 @@ download_file \
 	d5804808e9a72fe8ebe76d978a50d387252bb1a8c4e6d692f621d0ce02726caa
 
 if ! has_file home/yakyak/linux-x64; then
-	set -x
 	run_cmd_user unzip yakyak-linux-x64.zip
 fi
 
+setup_x_socket
 run_cmd_user ./linux-x64/yakyak
 
 lxc-stop -n $CONTAINER -t 10
