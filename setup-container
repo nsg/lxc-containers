@@ -39,9 +39,9 @@ set -e
 set -o pipefail
 
 test ! -z $1 && CONTAINER=$1
-test ! -z $2 && _base_on=$2
+test ! -z $2 && BASED_ON=$2
 
-BASED_ON=${_base_on="-d debian -r wheezy -a amd64"}
+BASED_ON=${BASED_ON="-d debian -r wheezy -a amd64"}
 
 if [ -z $CONTAINER ]; then
 	echo "Error, you need to specify a container name with CONTAINER env"
@@ -172,6 +172,9 @@ setup_mount_lock() {
 			sleep 0.2
 		done
 
+		if grep -q ':1000:' $HOME/.local/share/lxc/$CONTAINER/rootfs/etc/passwd; then
+			run_cmd userdel -f $(awk -F: '/:1000:/{print $1}' $HOME/.local/share/lxc/$CONTAINER/rootfs/etc/passwd)
+		fi
 		run_cmd adduser --uid $(id -u) --gecos FALSE --disabled-password $CONTAINER
 		run_cmd apt-get purge
 		run_cmd apt-get clean
