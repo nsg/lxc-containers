@@ -1,0 +1,135 @@
+#!/bin/bash
+
+# This script will setup an unprivileged container. If you use USE_X
+# your user id mappings will be the same inside the container.
+# This undermines the security but we need to do that to run X
+# applications inside the container (and display the the image on the
+# hosts X server). Never run untrusted X applications, they have full
+# access to your screen, keyboard, clipbord, ... (Wayland/Mir will
+# fix this)
+
+# Note:
+# * You need to add a line simular to: "nsg veth lxcbr0 100" to
+#   /etc/lxc/lxc-usernet so your unprivileged user can make interfaces.
+# * Both $HOME/.local and $HOME/.local/share needs the +x permission.
+
+# MIT License
+#
+# Copyright (c) 2016 Stefan Berggren
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+set -e
+set -o pipefail
+
+test ! -z $1 && CONTAINER=$1
+test ! -z $2 && _base_on=$2
+
+BASED_ON=${_base_on="-d debian -r wheezy -a amd64"}
+
+if [ -z $CONTAINER ]; then
+	echo "Error, you need to specify a container name with CONTAINER env"
+	exit 1
+fi
+
+add_config() {
+	echo "$1 = $2" >> $HOME/.local/share/lxc/$CONTAINER/config
+}
+
+remove_config() {
+	sed -i "/$1/d" $HOME/.local/share/lxc/$CONTAINER/config
+}
+
+run_cmd() {
+	lxc-attach --clear-env -n $CONTAINER -- $@
+}
+
+run_cmd_bash() {
+	lxc-attach --clear-env -n $CONTAINER -- bash -c "$@"
+}
+
+run_cmd_user() {
+	lxc-attach --clear-env -n $CONTAINER -- sudo -u $CONTAINER -i env DISPLAY=$DISPLAY $@
+}
+
+install_packages() {
+	for package in $@; do
+		run_cmd_bash "dpkg -s $package > /dev/null || apt-get -y install $package"
+	done
+}
+
+download_file() {
+	install_packages wget ca-certificates
+	if ! has_file /home/$CONTAINER/$2; then
+		run_cmd_user "wget -c $1 -O $2"
+	fi
+}
+
+has_file() {
+	[ -e $HOME/.local/share/lxc/$CONTAINER/rootfs/$1 ] && return 0
+	return 1
+}
+
+# Download a container if needed
+[ ! -f $HOME/.local/share/lxc/$CONTAINER/config ] && \
+	(
+		# Download a ubuntu container
+		lxc-create -t download -n $CONTAINER -- $BASED_ON
+
+		if [ ! -z $USE_X ]; then
+			# Mount .X11-unix to the container
+			add_config lxc.mount.entry "/tmp/.X11-unix tmp/.X11-unix none bind,optional,create=dir"
+
+			# Rewrite user mappings so that your user has the same UID inside the container.
+			# This do undermine the security but, X is old and unsecure this is needed :\
+			remove_config "lxc.id_map"
+			add_config "lxc.id_map" "u 0 100000 $(id -u)"
+			add_config "lxc.id_map" "g 0 100000 $(id -g)"
+			add_config "lxc.id_map" "u $(id -u) $(id -u) 1"
+			add_config "lxc.id_map" "g $(id -g) $(id -g) 1"
+			add_config "lxc.id_map" "u $(( $(id -u) + 1 )) $(( $(id -u) + 100001 )) $(( 65536 - $(( $(id -u) + 1 )) ))"
+			add_config "lxc.id_map" "g $(( $(id -g) + 1 )) $(( $(id -g) + 100001 )) $(( 65536 - $(( $(id -g) + 1 )) ))"
+		fi
+
+		lxc-start -n $CONTAINER -d
+		lxc-wait -n $CONTAINER -s RUNNING
+		sleep 10 # todo: figure out what to wait for
+
+		run_cmd adduser --uid $(id -u) --gecos FALSE --disabled-password $CONTAINER
+		run_cmd apt-get -y install sudo
+	)
+
+# Start the container, if needed
+if ! lxc-wait -n $CONTAINER -s RUNNING -t 0; then
+	lxc-start -n $CONTAINER -d
+	lxc-wait -n $CONTAINER -s RUNNING
+fi
+
+if [ ! -f ~/.local/share/applications/${CONTAINER}.desktop ]; then
+	cat <<END > ~/.local/share/applications/${CONTAINER}.desktop
+[Desktop Entry]
+Version=1.0
+Name=$CONTAINER container app
+Comment=A container app called $CONTAINER
+Exec=$0
+Icon=gnome-window-manager
+Type=Application
+Categories=Other;
+END
+fi
