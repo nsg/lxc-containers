@@ -142,6 +142,9 @@ setup_mount_lock() {
 
 		lxc-start -n $CONTAINER -d
 		lxc-wait -n $CONTAINER -s RUNNING
+		while run_cmd ip a | grep -q DOWN; do
+			sleep 0.2
+		done
 
 		> $HOME/.local/share/lxc/$CONTAINER/$1
 	fi
