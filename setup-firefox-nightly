@@ -41,6 +41,7 @@ if ! has_file home/$CONTAINER/firefox; then
 fi
 
 setup_x_socket
+setup_sound
 run_cmd_user firefox/firefox
 
 lxc-stop -n $CONTAINER -t 10
