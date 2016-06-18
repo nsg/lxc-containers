@@ -123,7 +123,9 @@ setup_x_socket() {
 
 		lxc-start -n $CONTAINER -d
 		lxc-wait -n $CONTAINER -s RUNNING
-		sleep 10 # todo: figure out what to wait for
+		while run_cmd ip a | grep -q DOWN; do
+			sleep 0.2
+		done
 
 		run_cmd adduser --uid $(id -u) --gecos FALSE --disabled-password $CONTAINER
 		run_cmd apt-get -y install sudo
@@ -133,6 +135,9 @@ setup_x_socket() {
 if ! lxc-wait -n $CONTAINER -s RUNNING -t 0; then
 	lxc-start -n $CONTAINER -d
 	lxc-wait -n $CONTAINER -s RUNNING
+	while run_cmd ip a | grep -q DOWN; do
+		sleep 0.2
+	done
 fi
 
 if [ ! -f ~/.local/share/applications/${CONTAINER}.desktop ]; then
