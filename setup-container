@@ -74,6 +74,10 @@ install_packages() {
 	done
 }
 
+install_deb() {
+	run_cmd_bash "dpkg -s $2 > /dev/null || env DEBIAN_FRONTEND=noninteractive dpkg -i $1"
+}
+
 download_file() {
 	install_packages wget ca-certificates
 	if ! has_file /home/$CONTAINER/$2; then
