@@ -128,6 +128,10 @@ setup_x_socket() {
 		done
 
 		run_cmd adduser --uid $(id -u) --gecos FALSE --disabled-password $CONTAINER
+		run_cmd apt-get purge
+		run_cmd apt-get clean
+		run_cmd apt-get check
+		run_cmd apt-get update
 		run_cmd apt-get -y install sudo
 	)
 
