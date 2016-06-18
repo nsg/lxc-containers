@@ -26,6 +26,7 @@
 
 USE_X=True
 CONTAINER=yakyak
+ICON_URL=https://raw.githubusercontent.com/yakyak/yakyak/master/src/icons/icon_128.png
 . $(dirname $0)/setup-container
 
 install_packages unzip libgtk2.0-0 libxss1 libgconf-2-4 libnss3 libasound2 libudev0 libxtst6
