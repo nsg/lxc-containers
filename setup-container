@@ -197,8 +197,10 @@ fi
 
 if [ ! -z $ICON_URL ] && [ ! -f /tmp/$CONTAINER-icon.png ]; then
 	wget -O /tmp/$CONTAINER-icon.png $ICON_URL
-	ICON=/tmp/$CONTAINER-icon.png
 fi
+
+[ ! -z $ICON_URL ] && ICON=/tmp/$CONTAINER-icon.png
+
 
 cat <<END > ~/.local/share/applications/${CONTAINER}.desktop
 [Desktop Entry]
