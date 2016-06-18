@@ -30,7 +30,11 @@ CONTAINER=yakyak
 . $(dirname $0)/setup-container
 
 install_packages unzip libgtk2.0-0 libxss1 libgconf-2-4 libnss3 libasound2 libudev0 libxtst6
-download_file https://github.com/yakyak/yakyak/releases/download/v1.3.0/yakyak-linux-x64.zip yakyak-linux-x64.zip
+
+download_file \
+	https://github.com/yakyak/yakyak/releases/download/v1.3.0/yakyak-linux-x64.zip \
+	yakyak-linux-x64.zip \
+	d5804808e9a72fe8ebe76d978a50d387252bb1a8c4e6d692f621d0ce02726caa
 
 if ! has_file home/yakyak/linux-x64; then
 	set -x
