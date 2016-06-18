@@ -36,7 +36,6 @@ download_file \
 	| grep -E 'firefox-.*linux-x86_64.tar.bz2' | tail -1 | awk '{ print $NF }') \
 	firefox-en-US.linux-x86_64.tar.bz2
 
-set -x
 if ! has_file home/$CONTAINER/firefox; then
 	run_cmd_user tar xfv firefox-en-US.linux-x86_64.tar.bz2
 fi
