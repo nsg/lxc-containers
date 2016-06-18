@@ -26,6 +26,7 @@
 
 USE_X=True
 CONTAINER=firefox-nightly
+ICON_URL=https://mdn.mozillademos.org/files/7513/Firefox-Nightly-300dpi.png
 . $(dirname $0)/setup-container
 
 install_packages lynx bzip2 libgtk-3-0 libasound2 libxtst6 libxt6
