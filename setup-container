@@ -65,7 +65,8 @@ run_cmd_bash() {
 }
 
 run_cmd_user() {
-	lxc-attach --clear-env -n $CONTAINER -- sudo -u $CONTAINER -i env DISPLAY=$DISPLAY $@
+	lxc-attach --clear-env -n $CONTAINER -- \
+		sudo -u $CONTAINER -i env DISPLAY=$DISPLAY PULSE_SERVER=/home/$CONTAINER/.pulse_socket $@
 }
 
 install_packages() {
@@ -92,17 +93,57 @@ has_file() {
 }
 
 setup_x_socket() {
-	if [ ! -f $HOME/.local/share/lxc/$CONTAINER/x-socket-configured ]; then
+	setup_mount_lock x-socket-configured "/tmp/.X11-unix tmp/.X11-unix none bind,optional,create=dir"
+}
+
+setup_sound() {
+	if [ ! -f $HOME/.local/share/lxc/$CONTAINER/snd-configured ]; then
+		install_packages pulseaudio
+		cat <<EOF > $HOME/.local/share/lxc/$CONTAINER/setup-pulse
+#!/bin/sh
+PULSE_PATH=$HOME/.local/share/lxc/$CONTAINER/rootfs/home/$CONTAINER/.pulse_socket
+if [ ! -e "\$PULSE_PATH" ] || [ -z "\$(lsof -n \$PULSE_PATH 2>&1)" ]; then
+	pactl load-module module-native-protocol-unix auth-anonymous=1 socket=\$PULSE_PATH
+fi
+EOF
+	chmod +x $HOME/.local/share/lxc/$CONTAINER/setup-pulse
+	add_config lxc.hook.pre-start "$HOME/.local/share/lxc/$CONTAINER/setup-pulse"
+#	mkdir $HOME/.local/share/lxc/$CONTAINER/rootfs/home/$CONTAINER/.pulse/
+#	echo "disable-shm=yes" > $HOME/.local/share/lxc/$CONTAINER/rootfs/home/$CONTAINER/.pulse/client.conf
+	setup_mount_lock snd-configured "/dev/snd dev/snd none bind,optional,create=dir"
+	setup_mount_lock snd-pulse "$HOME/.config/pulse home/$CONTAINER/.config/pulse none bind,optional,create=dir"
+	setup_mount_lock snd-pulse "$HOME/.pulse_socket home/$CONTAINER/.pulse_socket none bind,optional,create=dir"
+	fi
+}
+
+setup_video() {
+	setup_mount_lock dri-configured "/dev/dri dev/dri none bind,optional,create=dir"
+	setup_mount_lock video-configured "/dev/video0 dev/video0 none bind,optional,create=file"
+
+	if [ -e /dev/nvidia0 ]; then
+		if ! grep contrib $HOME/.local/share/lxc/$CONTAINER/rootfs/etc/apt/sources.list; then
+			run_cmd_bash "echo 'deb http://httpredir.debian.org/debian/ jessie main contrib non-free' >> /etc/apt/sources.list"
+			run_cmd apt-get update
+		fi
+		HOST_DRV_VERSION=$(nvidia-smi | awk '/Driver Version/{ print $6 }' | cut -f1 -d.)
+		setup_mount_lock video-nvidia0-configured "/dev/nvidia0 dev/nvidia0 none bind,optional,create=file"
+		setup_mount_lock video-nvidiactl-configured "/dev/nvidiactl dev/nvidiactl none bind,optional,create=file"
+		setup_mount_lock video-nvidiauvm-configured "/dev/nvidia-uvm dev/nvidia-uvm none bind,optional,create=file"
+		install_packages nvidia-$HOST_DRV_VERSION
+	fi
+}
+
+setup_mount_lock() {
+	if [ ! -f $HOME/.local/share/lxc/$CONTAINER/$1 ]; then
 		lxc-stop -n $CONTAINER -t 10
 		lxc-wait -n $CONTAINER -s STOPPED
 
-		# Mount .X11-unix to the container
-		add_config lxc.mount.entry "/tmp/.X11-unix tmp/.X11-unix none bind,optional,create=dir"
+		add_config lxc.mount.entry "$2"
 
 		lxc-start -n $CONTAINER -d
 		lxc-wait -n $CONTAINER -s RUNNING
 
-		> $HOME/.local/share/lxc/$CONTAINER/x-socket-configured
+		> $HOME/.local/share/lxc/$CONTAINER/$1
 	fi
 }
 
