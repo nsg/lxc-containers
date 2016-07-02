@@ -125,9 +125,11 @@ setup_video() {
 	setup_mount_lock video-configured "/dev/video0 dev/video0 none bind,optional,create=file"
 
 	if [ -e /dev/nvidia0 ]; then
-		if ! grep contrib $HOME/.local/share/lxc/$CONTAINER/rootfs/etc/apt/sources.list; then
-			run_cmd_bash "echo 'deb http://httpredir.debian.org/debian/ jessie main contrib non-free' >> /etc/apt/sources.list"
-			run_cmd apt-get update
+		if grep -qi debian $HOME/.local/share/lxc/$CONTAINER/rootfs/etc/lsb-release; then
+			if ! grep contrib $HOME/.local/share/lxc/$CONTAINER/rootfs/etc/apt/sources.list; then
+				run_cmd_bash "echo 'deb http://httpredir.debian.org/debian/ jessie main contrib non-free' >> /etc/apt/sources.list"
+				run_cmd apt-get update
+			fi
 		fi
 		HOST_DRV_VERSION=$(nvidia-smi | awk '/Driver Version/{ print $6 }' | cut -f1 -d.)
 		setup_mount_lock video-nvidia0-configured "/dev/nvidia0 dev/nvidia0 none bind,optional,create=file"
