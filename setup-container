@@ -83,7 +83,11 @@ download_file() {
 	install_packages wget ca-certificates
 	if ! has_file /home/$CONTAINER/$2; then
 		run_cmd_user "wget -c $1 -O $2"
-		[ ! -z $3 ] && echo "$3  $HOME/.local/share/lxc/$CONTAINER/rootfs/home/$CONTAINER/$2" | sha256sum -c -
+		if [ ! -z $3 ]; then
+			echo "$3  $HOME/.local/share/lxc/$CONTAINER/rootfs/home/$CONTAINER/$2" | sha256sum -c -
+		else
+			echo "Ignore sha256sum check"
+		fi
 	fi
 }
 
